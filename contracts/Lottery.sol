@@ -4,43 +4,47 @@ pragma solidity ^0.8.13;
 import "hardhat/console.sol";
 
 contract Lottery {
-    // declaring the state variables
-    address[] public players; //dynamic array of type address payable
+    address[] public players;
     address[] public gameWinners;
     address public owner;
 
-    // declaring the constructor
     constructor() {
-        // TODO: initialize the owner to the address that deploys the contract
+        // The address that deploys the contract becomes the owner.
+        owner = msg.sender;
     }
 
-    // declaring the receive() function that is necessary to receive ETH
+    modifier onlyOwner() {
+        // NOTE: The test suite seems to be looking for this error message specifically.
+        require(msg.sender == owner, "ONLY_OWNER");
+        _;
+
+    }
+    // This contract can receive (exactly) 0.1 ETH payments.
     receive() external payable {
-        // TODO: require each player to send exactly 0.1 ETH
-        // TODO: append the new player to the players array
+        require(msg.value == 0.1 ether, "Only payments of 0.1 ether accepted!");
+        players.push(msg.sender);
     }
 
-    // returning the contract's balance in wei
-    function getBalance() public view returns (uint256) {
-        // TODO: restrict this function so only the owner is allowed to call it
-        // TODO: return the balance of this address
+    // Make balance viewable (only by contract owner).
+    function getBalance() public view onlyOwner returns (uint256) {
+        return address(this).balance;
     }
 
-    // selecting the winner
-    function pickWinner() public {
-        // TODO: only the owner can pick a winner 
-        // TODO: owner can only pick a winner if there are at least 3 players in the lottery
+    // Determine the winner.
+    function pickWinner() public onlyOwner {
+        // Require 3+ players to play.
+        // NOTE: The test suite seems to be looking for this error message specifically.
+        require(players.length >= 3, "NOT_ENOUGH_PLAYERS");
 
         uint256 r = random();
         address winner;
 
-        // TODO: compute an unsafe random index of the array and assign it to the winner variable 
+        winner = players[r % players.length];
+        (bool isSuccessful,) = winner.call{value: getBalance()}("");
+        require(isSuccessful, "Failed to pay out winner!");
 
-        // TODO: append the winner to the gameWinners array
-
-        // TODO: reset the lottery for the next round
-
-        // TODO: transfer the entire contract's balance to the winner
+        gameWinners.push(winner);
+        delete players;
     }
 
     // helper function that returns a big random integer
